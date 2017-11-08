@@ -138,17 +138,16 @@ $(document).ready(function () {
 <h2>Sequence reads <a name="reads"></a></h2>
 <p>The <strong>fastq</strong> format is a common way to store sequence reads, each read is represented by four lines:</p>
 <ol style="list-style-type: decimal">
-<li><span class="citation">@Seqid</span> (instrument, flowcell lane, and then positioning info for where on the lane, sequence ID if multiplexed, and pair info (1/2)</li>
-<li>Sequence (ATCG)</li>
-<li><ul>
-<li>(may have sequence identifier)</li>
-</ul></li>
-<li>Quality score (<a href="https://en.wikipedia.org/wiki/Phred_quality_score">Phred score</a>, probability that a base call is incorrect), encoded by characters</li>
+<li><strong><code>@SeqID</code></strong> (instrument, flowcell lane, and then positioning info for where on the lane, sequence ID if multiplexed, and pair info (1/2)</li>
+<li><strong>Sequence</strong> (ATCG)</li>
+<li><strong><code>+</code></strong> (may have sequence identifier)</li>
+<li><strong>Quality scores</strong> (<a href="https://en.wikipedia.org/wiki/Phred_quality_score">Phred score</a>, probability that a base call is incorrect), encoded by characters</li>
 </ol>
 <p>The <code>@Seqid</code> can be used to glean information about the sequencing run. For example, from this file created on the Illumina HiSeq 2500 here at the Bauer Core:</p>
 <pre><code>@HISEQ2500:148:C9ECWANXX:8:1101:1338:2248 1:N:0:ATGACT</code></pre>
 <p>Breaking down this information, we have:</p>
-<pre><code>INSTRUMENT:RUN_ID:FLOWCELL_BARCODE:LANE:TILE_NUMBER:X_COORD_CLUSTER:Y_COORD_CLUSTER MEMBER_OF_PAIR(paired-end only):IS_READ_FILTERED(Y=yes,N=no):ARE_CONTROL_BITS_ON(0=No,even number otherise):INDEX_SEQUENCE</code></pre>
+<pre><code>INSTRUMENT:RUN_ID:FLOWCELL_BARCODE:LANE:TILE_NUMBER:X_COORD_CLUSTER:Y_COORD_CLUSTER 
+MEMBER_OF_PAIR(paired-end only):IS_READ_FILTERED(Y=yes,N=no):ARE_CONTROL_BITS_ON(0=No,even number otherise):INDEX_SEQUENCE</code></pre>
 </div>
 <div id="quality-control" class="section level2">
 <h2>Quality control <a name="qc"></a></h2>

@@ -28,9 +28,9 @@ The jobs take the form of shell scripts, which are submitted with the [sbatch co
 
 The **fastq** format is a common way to store sequence reads, each read is represented by four lines:
 
-1. **@Seqid** (instrument, flowcell lane, and then positioning info for where on the lane, sequence ID if multiplexed, and pair info (1/2)
+1. **`@SeqID`** (instrument, flowcell lane, and then positioning info for where on the lane, sequence ID if multiplexed, and pair info (1/2)
 2. **Sequence** (ATCG)
-3. **'+'** (may have sequence identifier)
+3. **`+`** (may have sequence identifier)
 4. **Quality scores** ([Phred score](https://en.wikipedia.org/wiki/Phred_quality_score), probability that a base call is incorrect), encoded by characters
 
 The `@Seqid` can be used to glean information about the sequencing run. For example, from this file created on the Illumina HiSeq 2500 here at the Bauer Core:
@@ -67,7 +67,7 @@ Create BAM index<br>
 Gather alignment metrics<br>
 Validate BAM<br>
 
-###Read Group Identifiers
+### Read Group Identifiers
 
 Read group identifiers are used to identify sequence data by sequencing technology (e.g. Illumina), flow cell, lane, sample ID, and library. Using these identifiers ensures that batch effects, or biases in the data that might have been introduced at different stages of the sequencing process can be properly accounted for. Detailed documentation on Read Groups can be found on the [GATK website](https://gatkforums.broadinstitute.org/gatk/discussion/6472/read-groups).
 
@@ -92,7 +92,7 @@ The read group information can be found in the file header (look for `@RG`) and 
  
 If you don't know the information on the flowcell and lane for your data, you can derive the information from the sequence headers found in a Fastq file, as described in the [Sequence reads](#reads) section.
 
-###Mapping reads to a reference genome
+### Mapping reads to a reference genome
 
 Once you have your reads, you need to map them to a reference genome. There are many different aligners out there (e.g. [BWA](http://bio-bwa.sourceforge.net) or [bowtie2](http://bowtie-bio.sourceforge.net/bowtie2/index.shtml)), but we recommend using **BWA** so that read group information can be added during the alignment stage, without requiring a separate step with Picard's [AddOrReplaceReadGroups](http://broadinstitute.github.io/picard/command-line-overview.html#AddOrReplaceReadGroups) tool.
 
@@ -115,15 +115,15 @@ There are many arguments available to use, as you can read in the [manual](http:
 | `-R <str>` | Read group information (see above for description) |
 | `-p`       | Specifies that fastq read 1 and read 2 files are interleaved, if only one fastq is specified and this command is not used, will assume single-end data |
 
-###Alignment Metrics
+### Alignment Metrics
 
-###Deduplication
+### Deduplication
 
-###Sorting
+### Sorting
 
-###Indexing
+### Indexing
 
-###Validating BAM file
+### Validating BAM file
 
 
 
