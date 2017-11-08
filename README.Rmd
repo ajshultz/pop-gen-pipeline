@@ -28,10 +28,10 @@ The jobs take the form of shell scripts, which are submitted with the [sbatch co
 
 The **fastq** format is a common way to store sequence reads, each read is represented by four lines:
 
-1. @Seqid (instrument, flowcell lane, and then positioning info for where on the lane, sequence ID if multiplexed, and pair info (1/2)
-2. Sequence (ATCG)
-3. + (may have sequence identifier)
-4. Quality score ([Phred score](https://en.wikipedia.org/wiki/Phred_quality_score), probability that a base call is incorrect), encoded by characters
+1. **@Seqid** (instrument, flowcell lane, and then positioning info for where on the lane, sequence ID if multiplexed, and pair info (1/2)
+2. **Sequence** (ATCG)
+3. **'+'** (may have sequence identifier)
+4. **Quality scores** ([Phred score](https://en.wikipedia.org/wiki/Phred_quality_score), probability that a base call is incorrect), encoded by characters
 
 The `@Seqid` can be used to glean information about the sequencing run. For example, from this file created on the Illumina HiSeq 2500 here at the Bauer Core:
 
@@ -39,7 +39,8 @@ The `@Seqid` can be used to glean information about the sequencing run. For exam
 
 Breaking down this information, we have:
 
-    INSTRUMENT:RUN_ID:FLOWCELL_BARCODE:LANE:TILE_NUMBER:X_COORD_CLUSTER:Y_COORD_CLUSTER MEMBER_OF_PAIR(paired-end only):IS_READ_FILTERED(Y=yes,N=no):ARE_CONTROL_BITS_ON(0=No,even number otherise):INDEX_SEQUENCE
+    INSTRUMENT:RUN_ID:FLOWCELL_BARCODE:LANE:TILE_NUMBER:X_COORD_CLUSTER:Y_COORD_CLUSTER 
+    MEMBER_OF_PAIR(paired-end only):IS_READ_FILTERED(Y=yes,N=no):ARE_CONTROL_BITS_ON(0=No,even number otherise):INDEX_SEQUENCE
     
 ## Quality control <a name="qc"></a>
 
