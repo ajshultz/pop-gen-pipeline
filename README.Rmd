@@ -24,6 +24,16 @@ This tutorial assumes that you have an account on the [Odyssey computer cluster]
 Programs, like those listed below (e.g. FastQC, Bowtie2, MACS2), are run on Odyssey by submitting jobs via the [SLURM management system](https://www.rc.fas.harvard.edu/resources/running-jobs/).
 The jobs take the form of shell scripts, which are submitted with the [sbatch command](https://www.rc.fas.harvard.edu/resources/running-jobs/#Submitting_batch_jobs_using_the_sbatch_command).  The shell scripts request computational resources (time, memory, and number of cores) for a job; it is better to request more resources than expected, rather than risk having a job terminated prematurely for exceeding its limits. When running many jobs, it is also good practice to run a small subset to better understand the resource use for these jobs, and tailor your requests for the full panel.
 
+### Running the GATK/PicardTools Pipeline on Odyssey
+
+A few notes on running **GATK** and **PicardTools** commands on Odyssey. These programs are built with java, and so when running the *jar* file (e.g. `java -jar picard.jar Command`), you can include a few extra [options](https://docs.oracle.com/javase/7/docs/technotes/tools/windows/java.html) to pass to java that are especially applicable to running these programs on Odyssey. First, you can add a memory limit to java, for example requirign java to use no more than 4GB memory: `-Xmx4g`. This can help ensure your program does not use more memory than you request, resulting in job termination.
+
+The second is: `-XX:ParallelGCThreads=1`. This command limits the number of java "Garbage Collector" threads running for each task. Based on what you set this number to be (we recommend 1 or 2), you should make sure to request that that number +1 for the number of cores you request in your submission script (e.g. `-n 2`). If you do not request this, java will start using many threads, and may cause your script to unexpectedly fail.
+
+An examle PicardTools command with these two variables is: 
+
+    java -Xmx4g -XX:ParallelGCThreads=1 -jar ~/path/to/picard.jar Command
+
 ## Sequence reads <a name="reads"></a>
 
 The **fastq** format is a common way to store sequence reads, each read is represented by four lines:
@@ -115,17 +125,62 @@ There are many arguments available to use, as you can read in the [manual](http:
 | `-R <str>` | Read group information (see above for description) |
 | `-p`       | Specifies that fastq read 1 and read 2 files are interleaved, if only one fastq is specified and this command is not used, will assume single-end data |
 
+The output file format from BWA is a SAM (Sequence Alignment/Map) file format. This is a common file format, and [detailed documentation](https://samtools.github.io/hts-specs/SAMv1.pdf) can be found on the Samtools website. **[Samtools](http://www.htslib.org)** is part of a useful set of programs written to interact with high throughput sequencing data. The details of all you can do with this program are beyond the scope of this tutorial, but this program can be used to view, merge, calculate the depth of coverage, calculate other statistics, and index SAM-style files among other things.
+
+### Sorting and Indexing
+
+Following alignment, you will need to sort the SAM file. We also recommend you store these types of alignment files in BAM format, which is similar to SAM format, but its binary equivalent, and therefore compressed and more efficient. As mentioned above, **[Samtools](http://www.htslib.org)** can be used to convert among file types, but we are working within the GATK pipeline for this tutorial, and so will work within the GATK/PicardTools universe. 
+
+You can automatically sort your SAM file by coordinate position (required for downstream analyses) and output the file in BAM format with PicardTools **[SortSam](http://broadinstitute.github.io/picard/command-line-overview.html#SortSam)** command. 
+
+    java -jar ~/path/to/picard.jar SortSam \
+    I=samplename_bwa.sam \
+    O=samplename_sorted.bam \
+    SORT_ORDER=coordinate
+
+To use this BAM file, you also need to create a BAM index, so that software can efficiently access the compressed file. We do this with the **[BuildBamIndex](http://broadinstitute.github.io/picard/command-line-overview.html#BuildBamIndex)** command.
+
+    java -jar ~/path/to/picard.jar BuildBamIndex \
+    I=samplename_sorted.bam
+
 ### Alignment Metrics
+
+It may also be useful to calculate metrics on the aligned sequences. We can easily do this with the **[CollectAlignmentSummaryMetrics](http://broadinstitute.github.io/picard/command-line-overview.html#CollectAlignmentSummaryMetrics)** tool. Note that this tools can also simultaneously creat a BAM index using the `CREATE_INDEX=TRUE` option and replace the previous command if not yet run. Note that you can collect the alignment metrics on several different levels. In the below example, I've included metrics both at the sample and read group level. You also need to include the reference fasta file.
+
+    java -jar ~/path/to/picard.jar CollectAlignmentSummaryMetrics \
+    I=samplename_sorted.bam \
+    R=reference.fasta \
+    METRIC_ACCUMULATION_LEVEL=SAMPLE \
+    METRIC_ACCUMULATION_LEVEL=READ_GROUP \
+    O=samplename.alignment_metrics.txt
 
 ### Deduplication
 
-### Sorting
+Following alignment, it is necessary to identify any duplicate sequences from the same DNA fragment in your files that occur due to sample preparation (e.g. during PCR) or incorrect optical cluster identification during sequencing. This possibility is why it is important to identify read groups for different lanes of the same sample. This is also a useful point to merge together any BAM files from the same sample that are currently separated (demonstrated in example below). We identify duplicate sequences with **[MarkDuplicates](https://broadinstitute.github.io/picard/command-line-overview.html#MarkDuplicates)**, and additional details on how this is performed can be found in the tool documentation. 
 
-### Indexing
+Note that it is not recommended to actually remove the duplicate sequences from the file, but simply to mark the flags appropriately in the BAM file, so that those sequences are ignored downstream. If using tools other than those we recommend here, make sure they can identify these flags. These sequences can also be removed later should the need arise.
+
+    java -jar ~/path/to/picard.jar MarkDuplicates \
+    TMP_DIR=tmp \
+    I=samplename_sorted_file1.bam \
+    I=samplename_sorted_file2.bam \
+    O=samplename.dedup.bam \
+    METRICS_FILE=samplename.dedup.metrics.txt \
+    REMOVE_DUPLICATES=false \
+    TAGGING_POLICY=ALL
+
+We also recommend creating a deduplications metrics file, which will report the proportion and type of duplicate sequences in your sample and read groups.
+
+***Following deduplication make sure to sort and index your file, as shown in the above section.***
 
 ### Validating BAM file
 
+Once you are done with the above steps, it is best practice to validate your BAM file, to make sure there were not issues or mistakes associated with previous analyses. This is done with **[ValidateSamFile](http://broadinstitute.github.io/picard/command-line-overview.html#ValidateSamFile)**.
 
+    java -jar ~/path/to/picard.jar ValidateSamFile \
+    I=sample.dedup.sorted.bam \
+    O=sample.validate.txt \
+    MODE=SUMMARY
 
 ## Indel realignment <a name="realignment"></a>
 
