@@ -16,6 +16,18 @@
 
 ## Experimental design <a name="design"></a>
 
+### 1. Sample sizes
+
+
+### 2. Pooled sequencing vs. individually barcoding
+
+
+### 3. Sequencing depth
+
+
+### 4. Sequencing mode
+
+
 
 ## Compute acces / Odyssey <a name="odyssey"></a>
 
@@ -32,7 +44,13 @@ The second is: `-XX:ParallelGCThreads=1`. This command limits the number of java
 
 An examle PicardTools command with these two variables is: 
 
-    java -Xmx4g -XX:ParallelGCThreads=1 -jar ~/path/to/picard.jar Command
+    java -Xmx4g -XX:ParallelGCThreads=1 -jar ~/path/to/picard.jar PicardTool \
+    I=Input \
+    1=Option1 \
+    2=Option2 \
+    O=Output
+    
+Note that the options associated with the program can all go in a single line without the `\` at the end, but it makes a script easier to read and interpret to break the command across lines.
 
 ## Sequence reads <a name="reads"></a>
 
@@ -156,7 +174,7 @@ It may also be useful to calculate metrics on the aligned sequences. We can easi
 
 ### Deduplication
 
-Following alignment, it is necessary to identify any duplicate sequences from the same DNA fragment in your files that occur due to sample preparation (e.g. during PCR) or incorrect optical cluster identification during sequencing. This possibility is why it is important to identify read groups for different lanes of the same sample. This is also a useful point to merge together any BAM files from the same sample that are currently separated (demonstrated in example below). We identify duplicate sequences with **[MarkDuplicates](https://broadinstitute.github.io/picard/command-line-overview.html#MarkDuplicates)**, and additional details on how this is performed can be found in the tool documentation. 
+After alignment, sorting and indexing, it is necessary to identify any duplicate sequences from the same DNA fragment in your files that occur due to sample preparation (e.g. during PCR) or incorrect optical cluster identification during sequencing. This possibility is why it is important to identify read groups for different lanes of the same sample. This is also a useful point to merge together any BAM files from the same sample that are currently separated (demonstrated in example below). We identify duplicate sequences with **[MarkDuplicates](https://broadinstitute.github.io/picard/command-line-overview.html#MarkDuplicates)**, and additional details on how this is performed can be found in the tool documentation. 
 
 Note that it is not recommended to actually remove the duplicate sequences from the file, but simply to mark the flags appropriately in the BAM file, so that those sequences are ignored downstream. If using tools other than those we recommend here, make sure they can identify these flags. These sequences can also be removed later should the need arise.
 
@@ -173,7 +191,7 @@ We also recommend creating a deduplications metrics file, which will report the 
 
 ***Following deduplication make sure to sort and index your file, as shown in the above section.***
 
-### Validating BAM file
+### Validating BAM files
 
 Once you are done with the above steps, it is best practice to validate your BAM file, to make sure there were not issues or mistakes associated with previous analyses. This is done with **[ValidateSamFile](http://broadinstitute.github.io/picard/command-line-overview.html#ValidateSamFile)**.
 
@@ -182,14 +200,118 @@ Once you are done with the above steps, it is best practice to validate your BAM
     O=sample.validate.txt \
     MODE=SUMMARY
 
+
 ## Indel realignment <a name="realignment"></a>
 
+Indel realigment is a process where indels, which due to stochastisity during the alignment process might be identified in slightly variable positions in different individuals, are standardized across a population (or species). This step is no longer necessary if you are using GATK's [HaplotypeCaller](https://software.broadinstitute.org/gatk/documentation/tooldocs/current/org_broadinstitute_gatk_tools_walkers_haplotypecaller_HaplotypeCaller.php) or [Mutech2](https://software.broadinstitute.org/gatk/documentation/tooldocs/current/org_broadinstitute_gatk_tools_walkers_cancer_m2_MuTect2.php) to call SNPs, as it is automatically build into downstream steps. However, if you plan to use BAM files directly in a program like [ANGSD](http://www.popgen.dk/angsd/index.php/Main_Page), or legacy GATK tools, we recommend you perform indel realignment. *Note, indel realignment is no longer available as of GATK v4, you need to use an older version to perform this step.*
+
+### 1. Realigner Target Creator
+
+The first step in indel realignment is to create a file for the position of indels across all of the indivdiulas in your sample. The GATK **[RealignerTargetCreator](https://software.broadinstitute.org/gatk/documentation/tooldocs/current/org_broadinstitute_gatk_tools_walkers_indels_RealignerTargetCreator.php)** tool can be used for this task. To perform this task, you need to input the BAM files for all sequenced individuals, as well as a reference genome. Note, if you are including many individuals (e.g. >20), this step can take several weeks. However, it is possible to perform this step on non-overlapping segments of the genome with the `-L scaffold_list` option, and concatenate all resulting files after the fact.
+
+*Note that this step only needs to be performed once, and the output file can be used for all individual realignments (described below).*
+
+    java -jar ~/path/to/GenomeAnalysisTK.jar -T RealignerTargetCreator \
+    -R reference.fasta \
+    -I sample_1.dedup.sorted.bam \
+    -I sample_2.dedup.sorted.bam \
+    -I sample_3.dedup.sorted.bam \
+    ...
+    -I sample_N.dedup.sorted.bam \
+    -o all_samples.intervals
+
+### 2. Indel Realigner
+
+Once the realigner target is available, each sample needs to be individually realigned, using the GATK program **[IndelRealigner](https://software.broadinstitute.org/gatk/documentation/tooldocs/current/org_broadinstitute_gatk_tools_walkers_indels_IndelRealigner.php)**.
+
+    java -jar ~/path/to/GenomeAnalysisTK.jar -T IndelRealigner \
+    -R reference.fasta \
+    -I sample_1.dedup.sorted.bam \
+    -targetIntervals all_samples.intervals \
+    -o sample_1.realigned.bam
 
 ## Variant calling <a name="variantcalling"></a>
+
+There are multiple options for variant calling, including programs like [FreeBayes](https://github.com/ekg/freebayes), [Samtools](http://www.htslib.org), and the [GATK](https://software.broadinstitute.org/gatk/). For this tutorial, we are focusing on the **[HaplotypeCaller](https://software.broadinstitute.org/gatk/documentation/tooldocs/current/org_broadinstitute_gatk_tools_walkers_haplotypecaller_HaplotypeCaller.php)** program from the GATK pipeline. Calling variants with HaplotypeCaller is essentially a two-step process (similar to indel realignment). First, you call genotypes individually for each sample. Second, you perform joint genotyping across samples to produce a multi-sample VCF callset. The advantage to this stategy is that the most computationally intensive step, calling genotypes for each sample, only needs to be performed once, even if additional samples will be added later. The joint genotyping, which is less computationally intensive, can be performed as many times as needed as individuals may be added to the dataset.
+
+*Note that even if you are not planning on using SNP calls in downstream analyses (e.g. due to low-coverage sequencing), it is possible to use the genotype likelihood scores from the resulting VCF files (discussed below), and take advantage of the active development on these variant callers.*
+
+### 1. Calling variants for each sample
+
+For each sample, the **[HaplotypeCaller](https://software.broadinstitute.org/gatk/documentation/tooldocs/current/org_broadinstitute_gatk_tools_walkers_haplotypecaller_HaplotypeCaller.php)** program is used to call variants. The minimum options need are a reference genome, BAM files for that sample, and output file name. Note that this process can be computationally intensive, so to speed the process up, you may wish to use a  *scatter-gather* approach (Figure XXX), and perfrom the variant calling on non-overlapping segments of the genome, specified with the `-L scaffold_list` option. 
+
+The output for this program will be a [GVCF](https://software.broadinstitute.org/gatk/documentation/article?id=4017), which has raw, unfiltered SNP and indel calls for all sites, variant or invariant, unlike a typical VCF file (see below for descriptions of the VCF file format.). This is specified by the `--emitRefConfidence GVCF` command, with an example below. See the program page for additonal parameter options.
+
+***Note, for low-coverage data, we recommend changing the defaults for two options: `-minPruning 1` and `-minDanglingBranchLength 1`. These commands ensure that any paths in the sample graph (see [detailed documentation on the model](https://software.broadinstitute.org/gatk/documentation/tooldocs/current/org_broadinstitute_gatk_tools_walkers_haplotypecaller_HaplotypeCaller.php)) are only dropped if there is no coverage. Otherwise the defaults of 2 and 4 respectivley, will drop low-coverage regions. See the [documentation](https://software.broadinstitute.org/gatk/documentation/tooldocs/current/org_broadinstitute_gatk_tools_walkers_haplotypecaller_HaplotypeCaller.php) for details on these and other available options.***
+
+Example command:
+
+    java -jar ~/path/to/GenomeAnalysisTK.jar -T HaplotypeCaller \
+    -R reference.fasta \
+    -I sample_1.dedup.sorted.bam \
+    --emitRefConfidence GVCF \
+    -o sample_1.raw.g.vcf \
+
+    
+    
+
+Figure XXX. Scatter-gather appraoch
+
+### 2. Joint genotyping across samples
+
+Once you have run HaplotypeCaller on your cohort of samples, you can use **[GenotypeGVCFs]()** to perform joint genotyping and produce a multi-sample variant callset from your gVCF files. 
+
+If you have split up your genome into intervals for Haplotype calling above, you can continue to run variant calling on those intervals by adding the `-L scaffold_list` option. Also, note that for non-human organisms, you may wish to vary the heterozygosity prior from the default value of *0.001*. You can do this with the heterozygosity option, for example with a  value of *0.005*: `--heterozygosity 0.005`. If you wish to include all sites, both variant and invariant, you need to use the `--includeNonVariantSites true` option. See the program page for additonal parameter options.
+
+Example command:
+
+    java -jar ~/path/to/GenomeAnalysisTK.jar -T GenotypeGVCFs \
+    -R reference.fasta \
+    -V sample_1.raw.g.vcf \
+    -V sample_2.raw.g.vcf \
+    ...
+    -V sample_X.raw.g.vcf \
+    -o all_samples.vcf
+    
+*Note, if you specify output file names with `.gz` extensions, GATK wil automatically compress your output files and create and index with tabix*
+
+### VCF File Format
+
+A standard way to store variant information in single or multiple samples is a **[Variant Call Format, or VCF file](https://software.broadinstitute.org/gatk/documentation/article?id=1268)**. The general format is a header, with information about the dataset, references, and annotations, and these lines start with `##`. Following the header, each variant is represented on a separate line with tabs separating each field. It starts with information on the chromosome (CHROM), position (POS), variantID (ID), reference allele (REF), alternate allele (ALT), quality score (QUAL), filter designation (FILTER, e.g. PASS), annotations (INFO),  individual representation format (FORMAT), and finally genotype information for each sample.
+
+The sample-level information can vary depending on the program used, but with the GATK pipeline it is shown as: `GT:AD:DP:GQ:PL`.
+Where: 
+* `GT` : **Genotype**<br>
+    Genotype for the sample at each site. For a diploid, 0/0 indicates homozygous reference alleles, 0/1 indicates a heterozygous sample, with a reference and alternate allele, 1/1 indicates homozygous alternate allele, and ./. indicates no sequence at that site for that individual. Note that samples with different ploidies will have an appropriate number of alleles.
+
+* `AD`: **Allele Depth**<br>
+    The number of reads that support each allele. If diploid, ref,alt.
+
+* `DP`: **Depth of Coverage**<br>
+    The filtered depth of coverage at the sample level.
+    
+* `GQ`: **Genotype Quality**<br>
+    The quality score of the genotype for that individual. This is usually measured on the [Phred scale](https://software.broadinstitute.org/gatk/documentation/article.php?id=4260), as with the Fastq file format, described above. Higher values are better.
+
+* `PL`: **"Normalized" Phred-scaled likelihoods of possible genotypes**<br>
+    For each possible genotype (three in the case of a diploid), the normalized likelihood score ([phred](https://software.broadinstitute.org/gatk/documentation/article.php?id=4260)-scaled), with the most likely genotype set to 0. The other values are scaled to this most likely genotype.
+
+
+### Combining VCF files
+
+If you have been working with the *scatter-gather* appraoch (Figure XXX), and easy way to combine non-overlapping VCF files is to use the **[GatherVcfs](http://broadinstitute.github.io/picard/command-line-overview.html#GatherVcfs)** tool from PicardTools. This is preferred over GATK's **[catVariants](https://software.broadinstitute.org/gatk/documentation/tooldocs/current/org_broadinstitute_gatk_tools_CatVariants.php)**, and runs quite quickly.
+
+    java -jar ~/path/to/picard.jar GatherVcfs  \
+    I=all_samples_interval_1.vcf \
+    I=all_samples_interval_2.vcf \
+    I=all_samples_interval_3.vcf \
+    O=all_samples_combined.vcf
+    
 
 
 ## Data filtering <a name="filtering"></a>
 
+Once you have produced a VCF file with all of your samples, it is necessary to filter for quality. If you are working with an organism that has a 
 
 ## Next steps <a name="next"></a>
 
