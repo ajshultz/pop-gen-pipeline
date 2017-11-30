@@ -1,33 +1,46 @@
 ## Table of Contents
-[Whole-genome pop gen sequencing overview](#overview)<br>
-[Experimental design](#design)<br>
-[Compute access / Odyssey](#odyssey)<br>
-[Sequence reads](#reads)<br>
-[Quality control](#qc)<br>
+[Whole-genome Pop Gen Sequencing Overview](#overview)<br>
+[Experimental Design](#design)<br>
+[Compute Access / Odyssey](#odyssey)<br>
+[Sequence Reads](#reads)<br>
+[Quality Control](#qc)<br>
 [Preprocessing](#preprocess)<br>
 [Indel Realignment](#realignment)<br>
 [Base Quality Score Recalibration](#bqsr)<br>
 [Variant Calling](#variantcalling)<br>
 [Data Filtering](#filtering)<br>
-[Next steps](#next)<br>
+[Next Steps](#next)<br>
 [References](#references)<br>
 
-## Whole-genome population genomics resequencing overview <a name="overview"></a>
+## Whole-genome resequencing population genomics overview <a name="overview"></a>
 
+Population genetics can be used to identify genetic variatioin within and between populations, and with DNA sequencing becoming less expensive, more researchers are turning to whole-genome resequencing to understand genome-wide variation. The objective of this tutorial is to familiarize users with the process of obtaining analysis-ready VCF files from population genomic whole genome resequencing data. The tutorial is based on the [GATK's best practices pipeline for Germline SNP and Indel Discovery](https://software.broadinstitute.org/gatk/best-practices/bp_3step.php?case=GermShortWGS), however, geared toward non-human organisms. We also address low-coverage whole genome resquencing data in the tutorial, as this is data type we expect to be common for our users. In addition to [fastq sequencing data files](#reads), it is also necessary to have a reference genome fasta file for the tutorial.
 
 ## Experimental design <a name="design"></a>
 
-### 1. Sample sizes
+There are numerous preparation methods, (e.g. [Nextera](https://www.illumina.com/products/by-type/sequencing-kits/library-prep-kits/nextera-dna.html), [Kapa](http://sequencing.roche.com/en/products-solutions/by-category/library-preparation/dna-library-preparation.html) ) to construct sequencing libraries from DNA extraction. These laboratory methods are beyond the scope of this tutorial. However, we will address a few aspects of study design when designing an experiment.
 
+### 1. Pooled sequencing vs. individually barcoding samples
 
-### 2. Pooled sequencing vs. individually barcoding
+One decision researchers need to make when designing their resequencing experiments is whether to pool unbarcoded individuals together in a single sequencing library (termed **Pool-seq**), or to individually barcode each individual, enabling researchers to demultiplex these individuals for downstream analyses even if they are pooled for sequencing itself. Their are pros and cons to both approaches, but essentially the decision comes down to cost and research objective. Many papers have been written about the pros and cons of pooled sequencing, and [Schlötterer et al. 2014](https://www.nature.com/articles/nrg3803) provides a nice review and comparison with other methods. Briefly, we outline some of the pros and cons below:
 
+* **Pooled sequencing**: The main advantage for this approach is cost savings on library preparation. If large sample sizes are required for the research objectives, library preparation costs can quickly become a limiting factor. By pooling large numbers of individuals in a single population, researchers would only need to prepare a single sequencing library per pool. However, this method has limitations on possible downstream analyses and potential sequencing biases. This method can yield estimates of allele frequencies from a pooled population, but few statistics beyond that (e.g. haplotype information, linkage disequilibrium). Pool-seq also works best when large numbers of individuals (>40) are pooled together, with pools on the order of hundreds or thousands of individuals being idea. One of the biggest drawbacks of Pool-seq is that unequal individual representation will produce biases in allele frequency estimates, and without barcodes it is impossible to know if this has occurred. This is less likely to happen with larger sample sizes.
+
+* **Individually barcoded sequencing**: The main advantage of this approach is that individually barcoding reads means that variants can be called for individuals, and with sufficient coverage (see below), it is possible to obtain haplotype information or other useful statistics. As mentioned above, the main drawback of this method is the cost of library preparation. There is is increasingly less expensive however, either by new kits becoming available, or the ability to split library preparation reagents into multiple, microreactions (e.g. [Baym et al. 2015](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4441430/)). Therefore, in the tutorial, we focus on methods for creating VCFs from individually barcoded samples.
+
+### 2. Sample sizes
+
+Determining how many individuals you need to sequence depends on what types of analysis you wish to conduct downstream. If the objective of the study is to describe population structure and genetic diversity, very few individuals per population are needed because whole-genome sequencing provides so much information per individual (e.g. [Nazareno et al. 2017](http://onlinelibrary.wiley.com/doi/10.1111/1755-0998.12654/full)). If the goal of the study is to perform detailed demographic inference (e.g. with the site frequency spectrum via dadi or fastsimcoal2), small numbers of individuals may be sufficient for detecting older events or testing different models, but larger numbers of individuals may be necessary to detect recent events or estimate parameters (e.g. [Robinson et al. 2014](https://bmcevolbiol.biomedcentral.com/articles/10.1186/s12862-014-0254-4))
+
+Identifying allele frequency shifts at specific sites (e.g. looking for Fst outliers) or GWAS-types of analyses require larger population sizes to have enough power to detect significant differences with FDR corrections for millions of sites.
 
 ### 3. Sequencing depth
 
+Ideally, to confidently call variants from whole genome resequencing data, diploid organisms should be sequenced to 30x coverage. However, due to limited budgets and different study goals, it is often possible to sequence to much lower coverage. For many population genomic goals, given a set amount of sequencing to work with (e.g. 100x coverage of the target genome), it is often more advantageous to sequence more individuals (100 individuals to 1x coverage), to more accurately infer population genetic parameters ([Buerkle and Gompert 2012](http://onlinelibrary.wiley.com/doi/10.1111/mec.12105/abstract)). Because of limited budgets despite falling seqeuncing costs, an increasing number of tools are available to make use of low-coverage whole genome resequencing for population genomic inference. For example, the [ANGSD](http://www.popgen.dk/angsd/index.php/ANGSD) and [NGSTools](https://github.com/mfumagalli/ngsTools) packages allow one to calculate site frequency spectra, diversity statistics, PCA, and admixture analysis, among others based entirely on genotype likelihood scores. Other packages, like [MAPGD](https://github.com/LynchLab/MAPGD), allow one to calculate linkage disequilibrum and relatedness using genotype likelihoods. By not actually calling genotypes, and instead inferring parameters from genotype likelihoods across individuals in a population, these programs avoid many of the biases associated with low-coverage genome data (e.g. [Han et al. 2014](https://academic.oup.com/mbe/article/31/3/723/1007998)).
 
 ### 4. Sequencing mode
 
+For whole-genome resequencing studies, it is almost always recommended to use paired-end sequencing. As genome coverage is generally a limiting factor, the cost per base is much less for paired-end than single-end data. In addition, paired-end data generally provide better abilities to map reads to reference genomes, which is highly advantageous, especially for low-coverage data.
 
 
 ## Compute acces / Odyssey <a name="odyssey"></a>
@@ -39,7 +52,9 @@ The jobs take the form of shell scripts, which are submitted with the [sbatch co
 
 ### Running the GATK/PicardTools Pipeline on Odyssey
 
-A few notes on running **GATK** and **PicardTools** commands on Odyssey. These programs are built with java, and so when running the *jar* file (e.g. `java -jar picard.jar Command`), you can include a few extra [options](https://docs.oracle.com/javase/7/docs/technotes/tools/windows/java.html) to pass to java that are especially applicable to running these programs on Odyssey. First, you can add a memory limit to java, for example requirign java to use no more than 4GB memory: `-Xmx4g`. This can help ensure your program does not use more memory than you request, resulting in job termination.
+A few notes on running **GATK** and **PicardTools** commands on Odyssey. The commands and information given below are specific to GATK and PicardTools version 3. These programs have been rolled together in GATK4, and while the commands will be similar, there will be some changes in the command structure. We will update this tutorial at a future date to incorporate GATK4.
+
+**GATK** and **PicardTools** are built with java, and so when running the *jar* file (e.g. `java -jar picard.jar Command`), you can include a few extra [options](https://docs.oracle.com/javase/7/docs/technotes/tools/windows/java.html) to pass to java that are especially applicable to running these programs on Odyssey. First, you can add a memory limit to java, for example requirign java to use no more than 4GB memory: `-Xmx4g`. This can help ensure your program does not use more memory than you request, resulting in job termination.
 
 The second is: `-XX:ParallelGCThreads=1`. This command limits the number of java "Garbage Collector" threads running for each task. Based on what you set this number to be (we recommend 1 or 2), you should make sure to request that that number +1 for the number of cores you request in your submission script (e.g. `-n 2`). If you do not request this, java will start using many threads, and may cause your script to unexpectedly fail.
 
@@ -420,10 +435,34 @@ Once the variants have filtered flags, you can again use **[selectVariants](http
     --excludeFiltered true \
     -o samples_passed_sites.vcf
     
-
+    
 ## Next steps <a name="next"></a>
 
 
 ## References <a name="references"></a>
 
+Baym M, Kryazhimskiy S, Lieberman TD, Chung H, Desai MM, Kishony R. 2015. Inexpensive Multiplexed Library Preparation for Megabase-Sized Genomes. PLoS ONE 10(5):e0128036
 
+Alex Buerkle, C. and Gompert, Z. (2013), Population genomics based on low coverage sequencing: how low should we go?. Mol Ecol, 22: 3028–3035.
+
+DePristo, M. A. et al. 2011. A framework for variation discovery and genotyping using next-generation DNA sequencing data. Nat Genet 43, 491–498.
+
+Fumagalli, M., Vieira, F. G., Linderoth, T. & Nielsen, R. 2014. ngsTools: methods for population genetics analyses from next-generation sequencing data. Bioinformatics (Oxford, England) 30, 1486–1487.
+
+Han, E., Sinsheimer, J. S. & Novembre, J. 2014. Characterizing Bias in Population Genetic Inferences from Low-Coverage Sequencing Data. Molecular Biology and Evolution 31, 723–735.
+
+Li, H. & Durbin, R. 2009. Fast and accurate short read alignment with Burrows-Wheeler transform. Bioinformatics (Oxford, England) 25, 1754–1760.
+
+Li, H. et al. 2009. The Sequence Alignment/Map format and SAMtools. Bioinformatics (Oxford, England) 25, 2078–2079.
+
+McKenna, A. et al. 2010. The Genome Analysis Toolkit: a MapReduce framework for analyzing next-generation DNA sequencing data. Genome Research 20, 1297–1303.
+
+Nazareno, A. G., Bemmels, J. B., Dick, C. W. and Lohmann, L. G. (2017), Minimum sample sizes for population genomics: an empirical study from an Amazonian plant species. Mol Ecol Resour, 17: 1136–1147
+
+Poplin et al. 2017. Scaling accurate genetic variant discovery to tens of thousands of samples. bioRxiv 201178
+
+Robinson, J. D., Coffman, A. J., Hickerson, M. J. & Gutenkunst, R. N. Sampling strategies for frequency spectrum-based population genomic inference. BMC Evol Biol 14, 254 (2014).
+
+Korneliussen, T. S., Albrechtsen, A. & Nielsen, R. 2014. ANGSD: Analysis of Next Generation Sequencing Data. BMC Bioinformatics 15, 356.
+
+Schlötterer, C., Tobler, R., Kofler, R. & Nolte, V. 2014. Sequencing pools of individuals — mining genome-wide polymorphism data without big funding. Nature Reviews Genetics 15, 749–763.
