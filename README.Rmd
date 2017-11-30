@@ -408,7 +408,7 @@ Example:
 
     vcftools --vcf raw_snps.vcf --outraw_snps_MQ --get-INFO MQ
 
-3. Apply filters to SNPs and INDEs. You can apply more than one filter here (see example below), and apply names to each different filter. The advantage of this is that later it is possible to remove specific subsets from the data depending on which filters the sites pass. Note that the filters are defined based on [JEXL](https://software.broadinstitute.org/gatk/documentation/article.php?id=1255).
+3. Apply filters to SNPs and INDELs. You can apply more than one filter here (see example below), and apply names to each different filter. The advantage of this is that later it is possible to remove specific subsets from the data depending on which filters the sites pass. Note that the filters are defined based on [JEXL](https://software.broadinstitute.org/gatk/documentation/article.php?id=1255).
 
     java -jar ~/path/to/GenomeAnalysisTK.jar -T VariantFiltration \
     -R reference.fasta \
@@ -443,7 +443,7 @@ Once the variants have filtered flags, you can again use **[selectVariants](http
 
 Baym M, Kryazhimskiy S, Lieberman TD, Chung H, Desai MM, Kishony R. 2015. Inexpensive Multiplexed Library Preparation for Megabase-Sized Genomes. PLoS ONE 10(5):e0128036
 
-Alex Buerkle, C. and Gompert, Z. (2013), Population genomics based on low coverage sequencing: how low should we go?. Mol Ecol, 22: 3028–3035.
+Buerkle, A. C. and Gompert, Z. (2013), Population genomics based on low coverage sequencing: how low should we go?. Mol Ecol, 22: 3028–3035.
 
 DePristo, M. A. et al. 2011. A framework for variation discovery and genotyping using next-generation DNA sequencing data. Nat Genet 43, 491–498.
 

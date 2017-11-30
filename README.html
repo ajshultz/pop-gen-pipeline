@@ -439,7 +439,7 @@ O=all_samples_combined.vcf</code></pre>
 <p>Example:</p>
 <pre><code>vcftools --vcf raw_snps.vcf --outraw_snps_MQ --get-INFO MQ</code></pre>
 <ol start="3" style="list-style-type: decimal">
-<li><p>Apply filters to SNPs and INDEs. You can apply more than one filter here (see example below), and apply names to each different filter. The advantage of this is that later it is possible to remove specific subsets from the data depending on which filters the sites pass. Note that the filters are defined based on <a href="https://software.broadinstitute.org/gatk/documentation/article.php?id=1255">JEXL</a>.</p>
+<li><p>Apply filters to SNPs and INDELs. You can apply more than one filter here (see example below), and apply names to each different filter. The advantage of this is that later it is possible to remove specific subsets from the data depending on which filters the sites pass. Note that the filters are defined based on <a href="https://software.broadinstitute.org/gatk/documentation/article.php?id=1255">JEXL</a>.</p>
 <p>java -jar ~/path/to/GenomeAnalysisTK.jar -T VariantFiltration<br />
 -R reference.fasta<br />
 -V samples_combined.vcf<br />
@@ -471,7 +471,7 @@ O=all_samples_combined.vcf</code></pre>
 <div id="references" class="section level2">
 <h2>References <a name="references"></a></h2>
 <p>Baym M, Kryazhimskiy S, Lieberman TD, Chung H, Desai MM, Kishony R. 2015. Inexpensive Multiplexed Library Preparation for Megabase-Sized Genomes. PLoS ONE 10(5):e0128036</p>
-<p>Alex Buerkle, C. and Gompert, Z. (2013), Population genomics based on low coverage sequencing: how low should we go?. Mol Ecol, 22: 3028–3035.</p>
+<p>Buerkle, A. C. and Gompert, Z. (2013), Population genomics based on low coverage sequencing: how low should we go?. Mol Ecol, 22: 3028–3035.</p>
 <p>DePristo, M. A. et al. 2011. A framework for variation discovery and genotyping using next-generation DNA sequencing data. Nat Genet 43, 491–498.</p>
 <p>Fumagalli, M., Vieira, F. G., Linderoth, T. &amp; Nielsen, R. 2014. ngsTools: methods for population genetics analyses from next-generation sequencing data. Bioinformatics (Oxford, England) 30, 1486–1487.</p>
 <p>Han, E., Sinsheimer, J. S. &amp; Novembre, J. 2014. Characterizing Bias in Population Genetic Inferences from Low-Coverage Sequencing Data. Molecular Biology and Evolution 31, 723–735.</p>
