@@ -14,7 +14,7 @@
 
 ## Whole-genome resequencing population genomics overview <a name="overview"></a>
 
-Population genetics can be used to identify genetic variation within and between populations, and with DNA sequencing becoming less expensive, more researchers are turning to whole-genome resequencing to understand genome-wide variation. The objective of this tutorial is to familiarize users with the process of obtaining analysis-ready VCF files from population genomic whole genome resequencing data. The tutorial is based on the [GATK's best practices pipeline for Germline SNP and Indel Discovery](https://software.broadinstitute.org/gatk/best-practices/bp_3step.php?case=GermShortWGS), however, geared toward non-human organisms. We also address low-coverage whole genome resequencing data in the tutorial, as this is data type we expect to be common for our users. In addition to [fastq sequencing data files](#reads), it is also necessary to have a reference genome fasta file for the tutorial.
+Population genetics can be used to identify genetic variation within and between populations, and with DNA sequencing becoming less expensive, more researchers are turning to whole-genome resequencing to understand genome-wide variation. The objective of this tutorial is to familiarize users with the process of obtaining analysis-ready VCF files from population genomic whole-genome resequencing data. The tutorial is based on the [GATK's best practices pipeline for Germline SNP and Indel Discovery](https://software.broadinstitute.org/gatk/best-practices/bp_3step.php?case=GermShortWGS), however, geared toward non-human organisms. We also address low-coverage whole-genome resequencing data in the tutorial, as we expect this data type to be common for our users. In addition to [fastq sequencing data files](#reads), it is also necessary to have a reference genome fasta file for this pipeline. If the reference exists but you don't have it in hand, you can download the fasta file from [that organism's genome page from NCBI](https://www.ncbi.nlm.nih.gov/genome/browse/#!/overview/).
 
 ## Experimental design <a name="design"></a>
 
@@ -24,19 +24,19 @@ There are numerous preparation methods, (e.g. [Nextera](https://www.illumina.com
 
 One decision researchers need to make when designing their resequencing experiments is whether to pool unbarcoded individuals together in a single sequencing library (termed **Pool-seq**), or to individually barcode each individual, enabling researchers to demultiplex these individuals for downstream analyses even if they are pooled for sequencing itself. There are pros and cons to both approaches, but essentially the decision comes down to cost and research objective. Many papers have been written about the pros and cons of pooled sequencing, and [Schlötterer et al. 2014](https://www.nature.com/articles/nrg3803) provides a nice review and comparison with other methods. Briefly, we outline some of the pros and cons below:
 
-* **Pooled sequencing**: The main advantage for this approach is cost savings on library preparation. If large sample sizes are required for the research objectives, library preparation costs can quickly become a limiting factor. By pooling large numbers of individuals in a single population, researchers would only need to prepare a single sequencing library per pool. However, this method has limitations on possible downstream analyses and potential sequencing biases. This method can yield estimates of allele frequencies from a pooled population, but few statistics beyond that (e.g. haplotype information, linkage disequilibrium). Pool-seq also works best when large numbers of individuals (>40) are pooled together, with pools on the order of hundreds or thousands of individuals being idea. One of the biggest drawbacks of Pool-seq is that unequal individual representation will produce biases in allele frequency estimates, and without barcodes it is impossible to know if this has occurred. This is less likely to happen with larger sample sizes.
+* **Pooled sequencing**: The main advantage for this approach is cost savings on library preparation. If large sample sizes are required for the research objectives, library preparation costs can quickly become a limiting factor. By pooling large numbers of individuals in a single population, researchers would only need to prepare a single sequencing library per pool. However, this method has limitations on possible downstream analyses and potential sequencing biases. This method can yield estimates of allele frequencies from a pooled population, but few statistics beyond that (e.g. haplotype information, linkage disequilibrium). Pool-seq also works best when large numbers of individuals (>40) are pooled together, with pools on the order of hundreds or thousands of individuals being ideal. One of the biggest drawbacks of Pool-seq is that unequal individual representation will produce biases in allele frequency estimates, and without barcodes it is impossible to know if this has occurred. This is less likely to happen with larger sample sizes.
 
 * **Individually barcoded sequencing**: The main advantage of this approach is that individually barcoding reads means that variants can be called for individuals, and with sufficient coverage (see below), it is possible to obtain haplotype information or other useful statistics. As mentioned above, the main drawback of this method is the cost of library preparation. This is increasingly less expensive however, either because of new kits becoming available, or the ability to split library preparation reagents into multiple microreactions (e.g. [Baym et al. 2015](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4441430/)). Therefore, in the tutorial, we focus on methods for creating VCFs from individually barcoded samples.
 
 ### 2. Sample sizes
 
-Determining how many individuals you need to sequence depends on what types of analysis you wish to conduct downstream. If the objective of the study is to describe population structure and genetic diversity, very few individuals per population are needed because whole-genome sequencing provides so much information per individual (e.g. [Nazareno et al. 2017](http://onlinelibrary.wiley.com/doi/10.1111/1755-0998.12654/full)). If the goal of the study is to perform detailed demographic inference (e.g. with the site frequency spectrum via dadi or fastsimcoal2), small numbers of individuals may be sufficient for detecting older events or testing different models, but larger numbers of individuals may be necessary to detect recent events or estimate parameters (e.g. [Robinson et al. 2014](https://bmcevolbiol.biomedcentral.com/articles/10.1186/s12862-014-0254-4))
+Determining how many individuals you need to sequence depends on what types of analysis you wish to conduct downstream. If the objective of the study is to describe population structure and genetic diversity, very few individuals per population are needed because whole-genome sequencing provides so much information per individual (e.g. [Nazareno et al. 2017](http://onlinelibrary.wiley.com/doi/10.1111/1755-0998.12654/full)). If the goal of the study is to perform detailed demographic inference (e.g. with the site frequency spectrum via dadi or fastsimcoal2), small numbers of individuals may be sufficient for detecting older events or testing different models, but larger numbers of individuals may be necessary to detect recent events or estimate parameters (e.g. [Robinson et al. 2014](https://bmcevolbiol.biomedcentral.com/articles/10.1186/s12862-014-0254-4)).
 
 Identifying allele frequency shifts at specific sites (e.g. looking for Fst outliers) or GWAS-types of analyses require larger population sizes to have enough power to detect significant differences with FDR corrections for millions of sites.
 
 ### 3. Sequencing depth
 
-Ideally, to confidently call variants from whole genome resequencing data, diploid organisms should be sequenced to 30x coverage. However, due to limited budgets and different study goals, it is often possible to sequence to much lower coverage. For many population genomic goals, given a set amount of sequencing to work with (e.g. 100x coverage of the target genome), it is often more advantageous to sequence more individuals (100 individuals to 1x coverage), to more accurately infer population genetic parameters ([Buerkle and Gompert 2012](http://onlinelibrary.wiley.com/doi/10.1111/mec.12105/abstract)). Because of limited budgets despite falling sequencing costs, an increasing number of tools are available to make use of low-coverage whole genome resequencing for population genomic inference. For example, the [ANGSD](http://www.popgen.dk/angsd/index.php/ANGSD) and [NGSTools](https://github.com/mfumagalli/ngsTools) packages allow one to calculate site frequency spectra, diversity statistics, PCA, and admixture analysis, among others based entirely on genotype likelihood scores. Other packages, like [MAPGD](https://github.com/LynchLab/MAPGD), allow one to calculate linkage disequilibrium and relatedness using genotype likelihoods. By not actually calling genotypes, and instead inferring parameters from genotype likelihoods across individuals in a population, these programs avoid many of the biases associated with low-coverage genome data (e.g. [Han et al. 2014](https://academic.oup.com/mbe/article/31/3/723/1007998)).
+Ideally, to confidently call variants from whole genome resequencing data, diploid organisms should be sequenced to 30x coverage. However, due to limited budgets and different study goals, it is often possible to sequence to much lower coverage. For many population genomic goals, given a set amount of sequencing to work with (e.g. 100x coverage of the target genome), it is often more advantageous to sequence more individuals (100 individuals to 1x coverage), to more accurately infer population genetic parameters ([Buerkle and Gompert 2012](http://onlinelibrary.wiley.com/doi/10.1111/mec.12105/abstract)). Because of limited budgets despite falling sequencing costs, an increasing number of tools are available to make use of low-coverage whole-genome resequencing for population genomic inference. For example, the [ANGSD](http://www.popgen.dk/angsd/index.php/ANGSD) and [NGSTools](https://github.com/mfumagalli/ngsTools) packages allow one to calculate site frequency spectra, diversity statistics, PCA, and admixture analysis among others based entirely on genotype likelihood scores. Other packages, like [MAPGD](https://github.com/LynchLab/MAPGD), allow one to calculate linkage disequilibrium and relatedness using genotype likelihoods. By not actually calling genotypes, and instead inferring parameters from genotype likelihoods across individuals in a population, these programs avoid many of the biases associated with low-coverage genome data (e.g. [Han et al. 2014](https://academic.oup.com/mbe/article/31/3/723/1007998)).
 
 ### 4. Sequencing mode
 
@@ -47,14 +47,14 @@ For whole-genome resequencing studies, it is almost always recommended to use pa
 
 This tutorial assumes that you have an account on the [Odyssey computer cluster](https://www.rc.fas.harvard.edu/training/introduction-to-odyssey-online/), which can be requested [here](https://portal.rc.fas.harvard.edu/request/account/new).
 
-Programs, like those listed below (e.g. FastQC, Bowtie2, MACS2), are run on Odyssey by submitting jobs via the [SLURM management system](https://www.rc.fas.harvard.edu/resources/running-jobs/).
+Programs, like those listed below (e.g. FastQC, BWA, GATK), are run on Odyssey by submitting jobs via the [SLURM management system](https://www.rc.fas.harvard.edu/resources/running-jobs/).
 The jobs take the form of shell scripts, which are submitted with the [sbatch command](https://www.rc.fas.harvard.edu/resources/running-jobs/#Submitting_batch_jobs_using_the_sbatch_command).  The shell scripts request computational resources (time, memory, and number of cores) for a job; it is better to request more resources than expected, rather than risk having a job terminated prematurely for exceeding its limits. When running many jobs, it is also good practice to run a small subset to better understand the resource use for these jobs, and tailor your requests for the full panel.
 
 ### Running the GATK/PicardTools Pipeline on Odyssey
 
 A few notes on running **GATK** and **PicardTools** commands on Odyssey. The commands and information given below are specific to GATK and PicardTools version 3. These programs have been rolled together in GATK4, and while the commands will be similar, there will be some changes in the command structure. We will update this tutorial at a future date to incorporate GATK4.
 
-**GATK** and **PicardTools** are built with java, and so when running the *jar* file (e.g. `java -jar picard.jar Command`), you can include a few extra [options](https://docs.oracle.com/javase/7/docs/technotes/tools/windows/java.html) to pass to java that are especially applicable to running these programs on Odyssey. First, you can add a memory limit to java, for example requiring java to use no more than 4GB memory: `-Xmx4g`. This can help ensure your program does not use more memory than you request, resulting in job termination.
+**GATK** and **PicardTools** are built with java, and so when running the *jar* file (e.g. `java -jar picard.jar <PicardTool>`), you can include a few extra [options](https://docs.oracle.com/javase/7/docs/technotes/tools/windows/java.html) to pass to java that are especially applicable to running these programs on Odyssey. First, you can add a memory limit to java, for example requiring java to use no more than 4GB memory: `-Xmx4g`. This can help ensure your program does not use more memory than you request, resulting in job termination on Odyssey. 
 
 The second is: `-XX:ParallelGCThreads=1`. This command limits the number of java "Garbage Collector" threads running for each task. Based on what you set this number to be (we recommend 1 or 2), you should make sure to request that that number +1 for the number of cores you request in your submission script (e.g. `-n 2`). If you do not request this, java will start using many threads, and may cause your script to unexpectedly fail.
 
@@ -69,13 +69,13 @@ An example PicardTools command with these two variables is:
     2=<Option2> \
     O=<Output>
     
-Note that the options associated with the program can all go in a single line without the `\` at the end, but it makes a script easier to read and interpret to break the command across lines.
+Note that the options associated with the program can all go in a single line without the `\` at the end, but it makes a script easier to read and interpret to break the command across lines. Commands that require use input are demonstrated by `<>`. You should fill in these options with your own filenames or commands.
 
 ## Sequence reads <a name="reads"></a>
 
 The **fastq** format is a common way to store sequence reads, each read is represented by four lines:
 
-1. **`@SeqID`** (instrument, flowcell lane, and then positioning info for where on the lane, sequence ID if multiplexed, and pair info (1/2)
+1. **`@SeqID`** (instrument, flowcell lane, and then positioning info for where on the lane, sequence ID if multiplexed, and pair info (1/2))
 2. **Sequence** (ATCG)
 3. **`+`** (may have sequence identifier)
 4. **Quality scores** ([Phred score](https://en.wikipedia.org/wiki/Phred_quality_score), probability that a base call is incorrect), encoded by characters
@@ -111,13 +111,7 @@ See the documentation for NGmerge `NGmerge -h` for additional parameter options,
 
 Note that additional trimming with resequencing data is not usually necessary, as many variant callers (e.g. **HaplotypeCaller**) take quality scores into account. Others (e.g. **ANGSD**), can trim reads during the data filtering step. For that reason, we do not recommend trimming here.
 
-Preprocessing workflow (make image): <br>
-Map each lane of each sample separately<br>
-Merge with deduplication<br>
-Sort BAM file<br>
-Create BAM index<br>
-Gather alignment metrics<br>
-Validate BAM<br>
+![Figure 1. Visual depiction of workflow](images/pop_gen_workflow_overview.png)
 
 ### Read Group Identifiers
 
@@ -178,16 +172,17 @@ You can automatically sort your SAM file by coordinate position (required for do
     java -jar ~/path/to/picard.jar SortSam \
     I=samplename_bwa.sam \
     O=samplename_sorted.bam \
-    SORT_ORDER=coordinate
+    SORT_ORDER=coordinate \
+    CREATE_INDEX=true
 
-To use this BAM file, you also need to create a BAM index, so that software can efficiently access the compressed file. We do this with the **[BuildBamIndex](http://broadinstitute.github.io/picard/command-line-overview.html#BuildBamIndex)** command.
+To use this BAM file, you also need to create a BAM index, so that software can efficiently access the compressed file. You notice that we automatically include index creation when sorting by specifying `CREATE_INDEX=true`. This is a universal command that can be applied to any PicardTools program. However, if you need to create an index separately, we do this with the **[BuildBamIndex](http://broadinstitute.github.io/picard/command-line-overview.html#BuildBamIndex)** command.
 
     java -jar ~/path/to/picard.jar BuildBamIndex \
     I=samplename_sorted.bam
 
 ### Alignment Metrics
 
-It may also be useful to calculate metrics on the aligned sequences. We can easily do this with the **[CollectAlignmentSummaryMetrics](http://broadinstitute.github.io/picard/command-line-overview.html#CollectAlignmentSummaryMetrics)** tool. Note that these tools can also simultaneously create a BAM index using the `CREATE_INDEX=TRUE` option and replace the previous command if not yet run. Note that you can collect the alignment metrics on several different levels. In the below example, I've included metrics both at the sample and read group level. You also need to include the reference fasta file.
+It may also be useful to calculate metrics on the aligned sequences. We can easily do this with the **[CollectAlignmentSummaryMetrics](http://broadinstitute.github.io/picard/command-line-overview.html#CollectAlignmentSummaryMetrics)** tool. Note that you can collect the alignment metrics on several different levels. In the below example, I've included metrics both at the sample and read group level. You also need to include the reference fasta file.
 
     java -jar ~/path/to/picard.jar CollectAlignmentSummaryMetrics \
     I=samplename_sorted.bam \
@@ -227,11 +222,11 @@ Once you are done with the above steps, it is best practice to validate your BAM
 
 ## Indel realignment <a name="realignment"></a>
 
-Indel realignment is a process where indels, which due to stochasticity during the alignment process might be identified in slightly variable positions in different individuals, are standardized across a population (or species). This step is no longer necessary if you are using GATK's [HaplotypeCaller](https://software.broadinstitute.org/gatk/documentation/tooldocs/current/org_broadinstitute_gatk_tools_walkers_haplotypecaller_HaplotypeCaller.php) or [Mutech2](https://software.broadinstitute.org/gatk/documentation/tooldocs/current/org_broadinstitute_gatk_tools_walkers_cancer_m2_MuTect2.php) to call SNPs, as it is automatically build into downstream steps. However, if you plan to use BAM files directly in a program like [ANGSD](http://www.popgen.dk/angsd/index.php/Main_Page), or legacy GATK tools, we recommend you perform indel realignment. *Note, indel realignment is no longer available as of GATK v4, you need to use an older version to perform this step.*
+Indel realignment is a process where indels, which due to stochasticity during the alignment process might be identified in slightly variable positions in different individuals, are standardized across a population (or species). This step is no longer necessary if you are using GATK's [HaplotypeCaller](https://software.broadinstitute.org/gatk/documentation/tooldocs/current/org_broadinstitute_gatk_tools_walkers_haplotypecaller_HaplotypeCaller.php) or [Mutech2](https://software.broadinstitute.org/gatk/documentation/tooldocs/current/org_broadinstitute_gatk_tools_walkers_cancer_m2_MuTect2.php) to call SNPs, as it is automatically build into downstream steps. However, if you plan to use BAM files directly in a program like [ANGSD](http://www.popgen.dk/angsd/index.php/Main_Page), or legacy GATK tools, we recommend you perform indel realignment. *Note, indel realignment is no longer available as of GATK4, you need to use an older version to perform this step.*
 
 ### 1. Realigner Target Creator
 
-The first step in indel realignment is to create a file for the position of indels across all of the individuals in your sample. The GATK **[RealignerTargetCreator](https://software.broadinstitute.org/gatk/documentation/tooldocs/current/org_broadinstitute_gatk_tools_walkers_indels_RealignerTargetCreator.php)** tool can be used for this task. To perform this task, you need to input the BAM files for all sequenced individuals, as well as a reference genome. Note, if you are including many individuals (e.g. >20), this step can take several weeks. However, it is possible to perform this step on non-overlapping segments of the genome with the `-L scaffold_list` [option](https://software.broadinstitute.org/gatk/documentation/article.php?id=4133), and concatenate all resulting files after the fact.
+The first step in indel realignment is to create a file for the position of indels across all of the individuals in your sample. The GATK **[RealignerTargetCreator](https://software.broadinstitute.org/gatk/documentation/tooldocs/current/org_broadinstitute_gatk_tools_walkers_indels_RealignerTargetCreator.php)** tool can be used for this task. To perform this task, you need to input the BAM files for all sequenced individuals, as well as a reference genome. Note, if you are including many individuals (e.g. >20), this step can take several weeks. However, it is possible to perform this step on non-overlapping segments of the genome with the `-L scaffold_list` [option](https://software.broadinstitute.org/gatk/documentation/article.php?id=4133), and concatenate all resulting files after the fact (e.g. the scatter-gather approach, Figure 2).
 
 *Note that this step only needs to be performed once, and the output file can be used for all individual realignments (described below).*
 
@@ -256,7 +251,7 @@ Once the realigner target is available, each sample needs to be individually rea
 
 ## Base Quality Score Recalibration <a name="bsqr"></a>
 
-The next step recommended by the GATK developers is [base quality score recalibration or BSQR](https://gatkforums.broadinstitute.org/gatk/discussion/44/base-quality-score-recalibration-bqsr). This step corrects base quality scores in the data for systematic technical errors based on a set of known set of true variants, such as those generated for humans in the 1000 genomes project. If you are working with an organism that does not yet have a *truth set* of variant calls (see [this](https://gatkforums.broadinstitute.org/gatk/discussion/1243) GATK forum post for some available resources), but your sequenced genomes to a moderate depth of coverage (~15x), it is still possible to perform BSQR by iteratively calling variants and using the highest scoring set as the input for BSQR. That is:
+The next step recommended by the GATK developers is [base quality score recalibration or BSQR](https://gatkforums.broadinstitute.org/gatk/discussion/44/base-quality-score-recalibration-bqsr). This step corrects base quality scores in the data for systematic technical errors based on a set of known true variants, such as those generated for humans in the 1000 genomes project. If you are working with an organism that does not yet have a *truth set* of variant calls (see [this](https://gatkforums.broadinstitute.org/gatk/discussion/1243) GATK forum post for some available resources), but your sequenced genomes to a moderate depth of coverage (~15x), it is still possible to perform BSQR by iteratively calling variants and using the highest scoring set as the input for BSQR. That is:
 
 1.  Complete variant calling (see below) on original data.
 2.  Take SNPs with highest confidence, (e.g. >15x coverage), and use the VCF as the database of known SNPs for BSQR.
@@ -287,7 +282,7 @@ There are multiple options for variant calling, including programs like [FreeBay
 
 ### 1. Calling variants for each sample
 
-For each sample, the **[HaplotypeCaller](https://software.broadinstitute.org/gatk/documentation/tooldocs/current/org_broadinstitute_gatk_tools_walkers_haplotypecaller_HaplotypeCaller.php)** program is used to call variants. The minimum options need are a reference genome, BAM files for that sample, and output file name. Note that this process can be computationally intensive, so to speed the process up, you may wish to use a  *scatter-gather* approach (Figure XXX), and perform the variant calling on non-overlapping segments of the genome, specified with the `-L scaffold_list` [option](https://software.broadinstitute.org/gatk/documentation/article.php?id=4133). 
+For each sample, the **[HaplotypeCaller](https://software.broadinstitute.org/gatk/documentation/tooldocs/current/org_broadinstitute_gatk_tools_walkers_haplotypecaller_HaplotypeCaller.php)** program is used to call variants. The minimum options needed are a reference genome, BAM files for that sample, and output file name. Note that this process can be computationally intensive, so to speed the process up, you may wish to use a  *scatter-gather* approach (Figure 2), and perform the variant calling on non-overlapping segments of the genome, specified with the `-L scaffold_list` [option](https://software.broadinstitute.org/gatk/documentation/article.php?id=4133). 
 
 The output for this program will be a [GVCF](https://software.broadinstitute.org/gatk/documentation/article?id=4017), which has raw, unfiltered SNP and indel calls for all sites, variant or invariant, unlike a typical VCF file (see below for descriptions of the VCF file format.). This is specified by the `--emitRefConfidence GVCF` command, with an example below. See the program page for additional parameter options.
 
@@ -299,12 +294,12 @@ Example command:
     -R reference.fasta \
     -I sample_1.dedup.sorted.bam \
     --emitRefConfidence GVCF \
-    -o sample_1.raw.g.vcf \
+    -o sample_1.raw.g.vcf 
 
     
     
+![Figure 2. Scatter-gather approach](images/scatter_gather.png)
 
-Figure XXX. Scatter-gather approach
 
 ### 2. Joint genotyping across samples
 
@@ -330,6 +325,7 @@ A standard way to store variant information in single or multiple samples is a *
 
 The sample-level information can vary depending on the program used, but with the GATK pipeline it is shown as: `GT:AD:DP:GQ:PL`.
 Where: 
+
 * `GT` : **Genotype**<br>
     Genotype for the sample at each site. For a diploid, 0/0 indicates homozygous reference alleles, 0/1 indicates a heterozygous sample, with a reference and alternate allele, 1/1 indicates homozygous alternate allele, and ./. indicates no sequence at that site for that individual. Note that samples with different ploidies will have an appropriate number of alleles.
 
@@ -348,7 +344,7 @@ Where:
 
 ### Combining VCF files
 
-If you have been working with the *scatter-gather* approach (Figure XXX), and easy way to combine non-overlapping VCF files is to use the **[GatherVcfs](http://broadinstitute.github.io/picard/command-line-overview.html#GatherVcfs)** tool from PicardTools. This is preferred over GATK's **[catVariants](https://software.broadinstitute.org/gatk/documentation/tooldocs/current/org_broadinstitute_gatk_tools_CatVariants.php)**, and runs quite quickly.
+If you have been working with the *scatter-gather* approach (Figure 2), an easy way to combine non-overlapping VCF files is to use the **[GatherVcfs](http://broadinstitute.github.io/picard/command-line-overview.html#GatherVcfs)** tool from PicardTools. This is preferred over GATK's **[catVariants](https://software.broadinstitute.org/gatk/documentation/tooldocs/current/org_broadinstitute_gatk_tools_CatVariants.php)**, and runs quite quickly.
 
     java -jar ~/path/to/picard.jar GatherVcfs  \
     I=all_samples_interval_1.vcf \
@@ -438,11 +434,31 @@ Once the variants have filtered flags, you can again use **[selectVariants](http
     
 ## Next steps <a name="next"></a>
 
-### Filtering your samples
+### Additional Quality Checks
+
+Once you have filtered your variants, you are ready for downstream analyses in any of your favorite programs that accept VCF files. However, we recommend that before charging full steam into downstream analyses, you conduct additional quality checks on sample and overall dataset quality. A quick PCA can inform you if your population is structured, if samples are clustering as they should (e.g. all individuals of the same species cluster together), or if there is anything weird going on. In many population genetic analyses, samples are assumed to be unrelated from a large population, so a quick relatedness test can help to ensure that there are no related samples. You also may want to make sure your have similar depths of coverage across your samples, or that SNPs generally correspond to chromosome length. Abnormalities in these statistics can help identify potential problems in the library preparation or variant calling pipeline.
 
 #### PCA
 
+There are many options for conducting a quick PCA analysis. One quick option is **[SNPRelate](http://bioconductor.org/packages/release/bioc/html/SNPRelate.html)**, a Bioconductor package. However, if you are working with low-coverage data and want to base your PCA on genotype likelihood scores rather than actual variant calls, **ANGSD** and **NGSTools** might be a better choice. A tutorial for running these analyses is available [here](http://bioconductor.org/packages/release/bioc/html/SNPRelate.html). *Note that to perform a PCA in ANGSD from a VCF file, you must first convert the VCF to a Beagle GL file.*
+
 #### Relatednesss
+
+There are several programs that can be used to compute relatedness between pairs of individuals, and one fairly quick program is **[KING](http://people.virginia.edu/~wc9c/KING/)**. Alternatively, if you have low-coverage data, **[NGSRelate](http://www.popgen.dk/software/index.php/NgsRelate)** can compute relatedness values based on genotype likelihood values. These analyses should be run on individuals from a single population, so we recommend calculating relatedness after you have conducted a PCA.
+
+### Manipulating VCF files:
+
+There are many software packages out there to handle VCF files, and below we will mention some of the most common ones for manipulating or calculating basic statistics. 
+
+* **[VCFTools](https://vcftools.github.io/man_latest.html)**<br>
+    VCFTools is a program specifically written to contain utilities for dealing with VCF files, and is a bit like the swiss-army knife of VCF manipulation. Not only can it filter VCF files by site or sample, it can also calculate basic statistics like Hardy-Weinberg, depth of coverage, LD statistics, the Transition/Transversion ratio, etc. We recommend getting to know VCFTools for overall VCF manipulation.
+    
+* **[Tabix](http://www.htslib.org/doc/tabix.html)**<br>
+    Tabix is part of the Samtools package of programs, and is most useful for indexing bgzipped VCF files. This index (`.tbi`) is required by many programs in order to use bgzipped VCF files as input. It can also be used for extremly fast data retrieval (e.g. to extract particular regions of the genome).
+
+* **[BedTools](http://bedtools.readthedocs.io/en/latest/)**<br>
+    Bedtools is a useful program for not only working with VCF files, but also other genome file formats including BAM, GFF/GTF, and BED files. Among other utilities, this program can intersect genome files (e.g. to extract coding sequences in a GFF file from a VCF file), calculate depth of coverage, identify the closest genomic element to variants, etc. 
+
 
 ## References <a name="references"></a>
 
