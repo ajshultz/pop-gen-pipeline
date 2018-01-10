@@ -1,3 +1,10 @@
+Title: Whole-genome resquencing for population genomics (Fastq to VCF)
+Date: 2017-1-10
+Category: Tutorials
+Author: Allison Shultz
+Tags: Genomics, Next-gen Sequencing, Whole Genome Resequencing, GATK
+Summary:  This tutorial will help users go from raw FASTQ sequencing files to analysis-read VCF files.
+
 ## Table of Contents
 [Whole-genome Pop Gen Sequencing Overview](#overview)<br>
 [Experimental Design](#design)<br>
