@@ -383,18 +383,20 @@ There are a number of parameters recommended for use for hard-filtering with bot
 
 1. Create vcf files for only SNPs and only INDELS:
 
+```
     java -jar ~/path/to/GenomeAnalysisTK.jar -T SelectVariants \
     -R reference.fasta \
     -V samples_combined.vcf \
     -selectType SNP \
     -o raw_snps.vcf
-
-
+```
+```
     java -jar ~/path/to/GenomeAnalysisTK.jar -T SelectVariants \
     -R reference.fasta \
     -V samples_combined.vcf \
     -selectType INDEL \
     -o raw_indels.vcf
+```
 
 2. Plot distributions of each parameter, and compare to distributions [here](https://gatkforums.broadinstitute.org/gatk/discussion/6925/understanding-and-adapting-the-generic-hard-filtering-recommendations).
 
@@ -406,6 +408,7 @@ Example:
 
 3. Apply filters to SNPs and INDELs. You can apply more than one filter here (see example below), and apply names to each different filter. The advantage of this is that later it is possible to remove specific subsets from the data depending on which filters the sites pass. Note that the filters are defined based on [JEXL](https://software.broadinstitute.org/gatk/documentation/article.php?id=1255).
 
+```
     java -jar ~/path/to/GenomeAnalysisTK.jar -T VariantFiltration \
     -R reference.fasta \
     -V samples_combined.vcf \
@@ -422,6 +425,7 @@ Example:
     --filterExpression "vc.isSNP() && ((vc.hasAttribute('MQ') && MQ < 40.0) || (vc.hasAttribute('MQRankSum') && MQRankSum < -12.5))" \
     --filterName "badMap" \
     -o samples_filtered.vcf
+```
 
 Once the variants have filtered flags, you can again use **[selectVariants](https://software.broadinstitute.org/gatk/documentation/tooldocs/current/org_broadinstitute_gatk_tools_walkers_variantutils_SelectVariants.php)** to create hard-filtered vcf files. For example, to only include variants that pass all filters:
 

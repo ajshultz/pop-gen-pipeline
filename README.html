@@ -430,41 +430,43 @@ O=all_samples_combined.vcf</code></pre>
 <div id="ideally-to-decide-on-the-best-parameter-values-for-your-data-you-will-decide-on-filters-appropriate-for-both-snps-and-indels-by" class="section level4">
 <h4>Ideally, to decide on the best parameter values for your data, you will decide on filters appropriate for both SNPs and INDELS by:</h4>
 <ol style="list-style-type: decimal">
-<li><p>Create vcf files for only SNPs and only INDELS:</p>
-<p>java -jar ~/path/to/GenomeAnalysisTK.jar -T SelectVariants<br />
--R reference.fasta<br />
--V samples_combined.vcf<br />
--selectType SNP<br />
--o raw_snps.vcf</p>
-<p>java -jar ~/path/to/GenomeAnalysisTK.jar -T SelectVariants<br />
--R reference.fasta<br />
--V samples_combined.vcf<br />
--selectType INDEL<br />
--o raw_indels.vcf</p></li>
-<li><p>Plot distributions of each parameter, and compare to distributions <a href="https://gatkforums.broadinstitute.org/gatk/discussion/6925/understanding-and-adapting-the-generic-hard-filtering-recommendations">here</a>.</p></li>
+<li>Create vcf files for only SNPs and only INDELS:</li>
+</ol>
+<pre><code>    java -jar ~/path/to/GenomeAnalysisTK.jar -T SelectVariants \
+    -R reference.fasta \
+    -V samples_combined.vcf \
+    -selectType SNP \
+    -o raw_snps.vcf</code></pre>
+<pre><code>    java -jar ~/path/to/GenomeAnalysisTK.jar -T SelectVariants \
+    -R reference.fasta \
+    -V samples_combined.vcf \
+    -selectType INDEL \
+    -o raw_indels.vcf</code></pre>
+<ol start="2" style="list-style-type: decimal">
+<li>Plot distributions of each parameter, and compare to distributions <a href="https://gatkforums.broadinstitute.org/gatk/discussion/6925/understanding-and-adapting-the-generic-hard-filtering-recommendations">here</a>.</li>
 </ol>
 <p><a href="https://vcftools.github.io">VCFtools</a> can be used to extract parameter values, which can then be plotted in a program like <a href="https://cran.r-project.org">R</a>.</p>
 <p>Example:</p>
 <pre><code>vcftools --vcf raw_snps.vcf --outraw_snps_MQ --get-INFO MQ</code></pre>
 <ol start="3" style="list-style-type: decimal">
-<li><p>Apply filters to SNPs and INDELs. You can apply more than one filter here (see example below), and apply names to each different filter. The advantage of this is that later it is possible to remove specific subsets from the data depending on which filters the sites pass. Note that the filters are defined based on <a href="https://software.broadinstitute.org/gatk/documentation/article.php?id=1255">JEXL</a>.</p>
-<p>java -jar ~/path/to/GenomeAnalysisTK.jar -T VariantFiltration<br />
--R reference.fasta<br />
--V samples_combined.vcf<br />
-–filterExpression “!vc.hasAttribute(‘DP’)”<br />
-–filterName “noCoverage”<br />
-–filterExpression “vc.hasAttribute(‘DP’) &amp;&amp; DP &lt; MINDEPTH”<br />
-–filterName “MinCov”<br />
-–filterExpression “vc.hasAttribute(‘DP’) &amp;&amp; DP &gt; MAXDEPTH”<br />
-–filterName “MaxCov”<br />
--filterExpression “(vc.isSNP() &amp;&amp; (vc.hasAttribute(‘ReadPosRankSum’) &amp;&amp; ReadPosRankSum &lt; -8.0)) || ((vc.isIndel() || vc.isMixed()) &amp;&amp; (vc.hasAttribute(‘ReadPosRankSum’) &amp;&amp; ReadPosRankSum &lt; -20.0)) || (vc.hasAttribute(‘QD’) &amp;&amp; QD &lt; 2.0)”<br />
-–filterName “badSeq”<br />
-–filterExpression “(vc.isSNP() &amp;&amp; ((vc.hasAttribute(‘FS’) &amp;&amp; FS &gt; 60.0) || (vc.hasAttribute(‘SOR’) &amp;&amp; SOR &gt; 3.0))) || ((vc.isIndel() || vc.isMixed()) &amp;&amp; ((vc.hasAttribute(‘FS’) &amp;&amp; FS &gt; 200.0) || (vc.hasAttribute(‘SOR’) &amp;&amp; SOR &gt; 10.0)))”<br />
-–filterName “badStrand”<br />
-–filterExpression “vc.isSNP() &amp;&amp; ((vc.hasAttribute(‘MQ’) &amp;&amp; MQ &lt; 40.0) || (vc.hasAttribute(‘MQRankSum’) &amp;&amp; MQRankSum &lt; -12.5))”<br />
-–filterName “badMap”<br />
--o samples_filtered.vcf</p></li>
+<li>Apply filters to SNPs and INDELs. You can apply more than one filter here (see example below), and apply names to each different filter. The advantage of this is that later it is possible to remove specific subsets from the data depending on which filters the sites pass. Note that the filters are defined based on <a href="https://software.broadinstitute.org/gatk/documentation/article.php?id=1255">JEXL</a>.</li>
 </ol>
+<pre><code>    java -jar ~/path/to/GenomeAnalysisTK.jar -T VariantFiltration \
+    -R reference.fasta \
+    -V samples_combined.vcf \
+    --filterExpression &quot;!vc.hasAttribute('DP')&quot; \
+    --filterName &quot;noCoverage&quot; \
+    --filterExpression &quot;vc.hasAttribute('DP') &amp;&amp; DP &lt; MINDEPTH&quot; \
+    --filterName &quot;MinCov&quot; \
+    --filterExpression &quot;vc.hasAttribute('DP') &amp;&amp; DP &gt; MAXDEPTH&quot; \
+    --filterName &quot;MaxCov&quot; \
+    -filterExpression &quot;(vc.isSNP() &amp;&amp; (vc.hasAttribute('ReadPosRankSum') &amp;&amp; ReadPosRankSum &lt; -8.0)) || ((vc.isIndel() || vc.isMixed()) &amp;&amp; (vc.hasAttribute('ReadPosRankSum') &amp;&amp; ReadPosRankSum &lt; -20.0)) || (vc.hasAttribute('QD') &amp;&amp; QD &lt; 2.0) &quot; \
+    --filterName &quot;badSeq&quot; \
+    --filterExpression &quot;(vc.isSNP() &amp;&amp; ((vc.hasAttribute('FS') &amp;&amp; FS &gt; 60.0) || (vc.hasAttribute('SOR') &amp;&amp;  SOR &gt; 3.0))) || ((vc.isIndel() || vc.isMixed()) &amp;&amp; ((vc.hasAttribute('FS') &amp;&amp; FS &gt; 200.0) || (vc.hasAttribute('SOR') &amp;&amp;  SOR &gt; 10.0)))&quot; \
+    --filterName &quot;badStrand&quot; \
+    --filterExpression &quot;vc.isSNP() &amp;&amp; ((vc.hasAttribute('MQ') &amp;&amp; MQ &lt; 40.0) || (vc.hasAttribute('MQRankSum') &amp;&amp; MQRankSum &lt; -12.5))&quot; \
+    --filterName &quot;badMap&quot; \
+    -o samples_filtered.vcf</code></pre>
 <p>Once the variants have filtered flags, you can again use <strong><a href="https://software.broadinstitute.org/gatk/documentation/tooldocs/current/org_broadinstitute_gatk_tools_walkers_variantutils_SelectVariants.php">selectVariants</a></strong> to create hard-filtered vcf files. For example, to only include variants that pass all filters:</p>
 <pre><code>java -jar ~/path/to/GenomeAnalysisTK.jar -T SelectVariants \
 -R reference.fasta \
