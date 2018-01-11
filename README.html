@@ -121,6 +121,7 @@ $(document).ready(function () {
 </div>
 
 
+<p>Title: Whole-genome resquencing for population genomics (Fastq to VCF) Date: 2017-1-10 Category: Tutorials Author: Allison Shultz Tags: Genomics, Next-gen Sequencing, Whole Genome Resequencing, GATK Summary: This tutorial will help users go from raw FASTQ sequencing files to analysis-read VCF files.</p>
 <div id="table-of-contents" class="section level2">
 <h2>Table of Contents</h2>
 <p><a href="#overview">Whole-genome Pop Gen Sequencing Overview</a><br> <a href="#design">Experimental Design</a><br> <a href="#odyssey">Compute Access / Odyssey</a><br> <a href="#reads">Sequence Reads</a><br> <a href="#qc">Quality Control</a><br> <a href="#preprocess">Preprocessing</a><br> <a href="#realignment">Indel Realignment</a><br> <a href="#bqsr">Base Quality Score Recalibration</a><br> <a href="#variantcalling">Variant Calling</a><br> <a href="#filtering">Data Filtering</a><br> <a href="#next">Next Steps</a><br> <a href="#references">References</a><br></p>
@@ -297,7 +298,7 @@ I=samplename_sorted_file2.bam \
 O=samplename.dedup.bam \
 METRICS_FILE=samplename.dedup.metrics.txt \
 REMOVE_DUPLICATES=false \
-TAGGING_POLICY=ALL</code></pre>
+TAGGING_POLICY=All</code></pre>
 <p>We also recommend creating a deduplications metrics file, which will report the proportion and type of duplicate sequences in your sample and read groups.</p>
 <p><strong><em>Following deduplication make sure to sort and index your file, as shown in the above section.</em></strong></p>
 </div>
